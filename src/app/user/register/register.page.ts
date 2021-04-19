@@ -13,6 +13,9 @@ import { DatePipe } from '@angular/common';
 // Alert Controller
 import { AlertController } from '@ionic/angular';
 
+// Usuário autenticado
+import { AngularFireAuth } from '@angular/fire/auth';
+
 // 6) Não permite somente espaços nos campos
 export function removeSpaces(control: AbstractControl) {
   if (control && control.value && !control.value.replace(/\s/g, '').length) {
@@ -38,22 +41,39 @@ export class RegisterPage implements OnInit {
     public firestore: AngularFirestore,
 
     // Alert Controller
-    public alert: AlertController
+    public alert: AlertController,
+
+    // Usuário autenticado
+    public auth: AngularFireAuth
   ) { }
 
   ngOnInit() {
     // 4) Cria o formulário de contatos
     this.registerFormCreate();
+
+    // Preenche os campos se usuário está logado
+    if (this.registerForm) {
+      this.auth.onAuthStateChanged(
+        (userData) => {
+          if (userData) {
+            this.registerForm.controls.name.setValue(userData.displayName.trim());
+            this.registerForm.controls.email.setValue(userData.email.trim());
+            this.registerForm.controls.uid.setValue(userData.uid.trim());
+          }
+        }
+      );
+    }
   }
 
   // 5) Cria o formulário de contatos
   registerFormCreate() {
 
-    // 'contactForm' contém o formulário
+    // 'registerForm' contém o formulário
     // Um formulário é um 'agrupamento' (group) de campos...
     this.registerForm = this.form.group({
 
-      // Data de cadastro está vazia
+      // Data de cadastro (date)
+      // * Será gerada automaticamente pelo script
       date: [''],
 
       // Campo 'Nome' (name)
@@ -81,50 +101,67 @@ export class RegisterPage implements OnInit {
         '',
         Validators.compose([
           Validators.required,
-          Validators.pattern(/(\(?\d{2}\)?\s)?(\d{4,5}\-\d{4})/g),
+          Validators.pattern(/^(?:(?:\+|00)?(55)\s?)?(?:\(?([1-9][0-9])\)?\s?)?(?:((?:9\d|[2-9])\d{3})\-?(\d{4}))$/),
           removeSpaces
         ]),
       ],
 
+      // Campo 'Whatsapp' (whatsapp)
       whatsapp: [
         '',
         Validators.compose([
           Validators.required,
-          Validators.pattern(/(\(?\d{2}\)?\s)?(\d{4,5}\-\d{4})/g),
+          Validators.pattern(/^(?:(?:\+|00)?(55)\s?)?(?:\(?([1-9][0-9])\)?\s?)?(?:((?:9\d|[2-9])\d{3})\-?(\d{4}))$/),
           removeSpaces
         ]),
       ],
 
+      // Campo data de nascimento (birth)
       birth: [
         '',
         Validators.compose([
           Validators.required,
-          Validators.pattern("\d{2}/\d{2}/\d{4}"),
+          Validators.pattern(/^([0-2][0-9]|(3)[0-1])(\/)(((0)[0-9])|((1)[0-2]))(\/)\d{4}$/),
           removeSpaces
         ])
       ],
 
+      // Campo CPF (cpf)
       cpf: [
-        ''
+        '',
+        Validators.compose([
+          Validators.required,
+          Validators.pattern(/^([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}\-?[0-9]{2})$/)
+        ])
       ],
 
+      // Campo sexo (gender)
       gender: [
-        ''
+        '',
+        Validators.compose([
+          Validators.required
+        ])
       ],
 
+      // Campo endereço (address)
       address: [
-        ''
+        '',
+        Validators.compose([
+          Validators.required
+        ])
       ],
 
-      pwd: [
-        ''
-      ]
+      // Campo PCD (pwd)
+      pwd: [false],
+
+      // Id do usuário logado (uid)
+      uid: ['']
 
     });
   }
 
   // 7) Processa o envio do formulário]
-  contactSend() {
+  registerSend() {
 
     // Cria e formata a data
     this.registerForm.controls.date.setValue(
@@ -132,7 +169,7 @@ export class RegisterPage implements OnInit {
     );
 
     // Salva em um novo documento do Firebase Firestore
-    this.firestore.collection('register').add(this.registerForm.value)
+    this.firestore.collection('register').doc(this.registerForm.value.uid).set(this.registerForm.value)
       .then(
         () => {
 
